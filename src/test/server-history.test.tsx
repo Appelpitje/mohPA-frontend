@@ -202,6 +202,11 @@ describe('Advanced Server History & GameTracker Stats', () => {
       expect(screen.getByText('1h 30m')).toBeInTheDocument(); // 5400s
       expect(screen.getByText('1h 0m')).toBeInTheDocument(); // 3600s
 
+      // Check KILLS, DEATHS, K/D column headers
+      expect(screen.getByRole('columnheader', { name: /kills/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /deaths/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /k\/d/i })).toBeInTheDocument();
+
       // Filter search
       const input = screen.getByPlaceholderText(/search soldier callsign/i);
       fireEvent.change(input, { target: { value: 'miller' } });
@@ -209,6 +214,20 @@ describe('Advanced Server History & GameTracker Stats', () => {
       expect(screen.getByText('Sgt_Miller')).toBeInTheDocument();
       expect(screen.queryByText('Capt_Speirs')).not.toBeInTheDocument();
       expect(screen.queryByText('Doc_Roe')).not.toBeInTheDocument();
+    });
+
+    it('sorts players by kills when clicking KILLS header', () => {
+      render(
+        <MemoryRouter>
+          <ServerWhoPlayedTable players={mockPlayers} />
+        </MemoryRouter>
+      );
+
+      const killsHeader = screen.getByRole('columnheader', { name: /kills/i });
+      fireEvent.click(killsHeader);
+      // First row should be Capt_Speirs with 30 kills
+      const rows = screen.getAllByRole('row');
+      expect(rows[1]).toHaveTextContent('Capt_Speirs');
     });
   });
 

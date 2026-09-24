@@ -19,7 +19,7 @@ export interface ServerWhoPlayedTableProps {
   onSelectPlayer?: (name: string) => void;
 }
 
-type SortField = 'time' | 'score' | 'kills' | 'lastSeen';
+type SortField = 'time' | 'score' | 'kills' | 'deaths' | 'kd' | 'lastSeen';
 
 export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
   players,
@@ -67,6 +67,11 @@ export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
 
     result.sort((a, b) => {
       let comparison = 0;
+      const aKills = a.kills ?? (a.score && a.score > 0 ? a.score : 0);
+      const bKills = b.kills ?? (b.score && b.score > 0 ? b.score : 0);
+      const aDeaths = a.deaths || 0;
+      const bDeaths = b.deaths || 0;
+
       switch (sortField) {
         case 'time':
           comparison = (b.timePlayedSeconds || 0) - (a.timePlayedSeconds || 0);
@@ -75,8 +80,17 @@ export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
           comparison = (b.score || 0) - (a.score || 0);
           break;
         case 'kills':
-          comparison = (b.kills || 0) - (a.kills || 0);
+          comparison = bKills - aKills;
           break;
+        case 'deaths':
+          comparison = bDeaths - aDeaths;
+          break;
+        case 'kd': {
+          const aRatio = aDeaths > 0 ? aKills / aDeaths : aKills;
+          const bRatio = bDeaths > 0 ? bKills / bDeaths : bKills;
+          comparison = bRatio - aRatio;
+          break;
+        }
         case 'lastSeen':
           comparison = new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
           break;
@@ -179,12 +193,30 @@ export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
                   </span>
                 </th>
                 <th
-                  className="px-3 py-2.5 text-center cursor-pointer hover:text-ink select-none"
+                  className="px-3 py-2.5 text-right cursor-pointer hover:text-ink select-none"
                   onClick={() => handleSort('kills')}
                 >
-                  <span className="inline-flex items-center gap-1 justify-center">
-                    K / D
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    KILLS
                     {sortField === 'kills' && (sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                  </span>
+                </th>
+                <th
+                  className="px-3 py-2.5 text-right cursor-pointer hover:text-ink select-none"
+                  onClick={() => handleSort('deaths')}
+                >
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    DEATHS
+                    {sortField === 'deaths' && (sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                  </span>
+                </th>
+                <th
+                  className="px-3 py-2.5 text-right cursor-pointer hover:text-ink select-none"
+                  onClick={() => handleSort('kd')}
+                >
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    K/D
+                    {sortField === 'kd' && (sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
                   </span>
                 </th>
                 <th className="px-3 py-2.5 text-center">SESSIONS</th>
@@ -202,6 +234,10 @@ export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
             <tbody className="divide-y divide-sand-200">
               {paginatedPlayers.map((player, idx) => {
                 const overallIdx = (page - 1) * pageSize + idx;
+                const kills = player.kills ?? (player.score && player.score > 0 ? player.score : 0);
+                const deaths = player.deaths || 0;
+                const kdRatio = deaths > 0 ? (kills / deaths).toFixed(2) : kills > 0 ? kills.toFixed(2) : '-';
+
                 return (
                   <tr
                     key={`${player.name}-${idx}`}
@@ -250,10 +286,14 @@ export const ServerWhoPlayedTable: React.FC<ServerWhoPlayedTableProps> = ({
                     <td className="px-3 py-2 text-right font-bold text-ink">
                       {(player.score || 0).toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-center text-ink">
-                      <span className="text-olive-700 font-semibold">{player.kills || 0}</span>
-                      <span className="text-ink-muted mx-1">/</span>
-                      <span className="text-crimson-600 font-semibold">{player.deaths || 0}</span>
+                    <td className="px-3 py-2 text-right font-bold text-olive-700">
+                      {kills.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold text-crimson-600">
+                      {deaths.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-ink">
+                      {kdRatio}
                     </td>
                     <td className="px-3 py-2 text-center text-ink-muted">
                       {player.sessionCount || 1}

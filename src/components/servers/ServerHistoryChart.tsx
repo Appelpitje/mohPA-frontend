@@ -116,8 +116,6 @@ export const ServerHistoryChart: React.FC<ServerHistoryChartProps> = ({
 
   // Peak line Y coordinate
   const peakY = paddingTop + chartHeight - (Math.min(maxVal, summary.peakPlayers) / maxVal) * chartHeight;
-  // Average line Y coordinate
-  const avgY = paddingTop + chartHeight - (Math.min(maxVal, summary.averagePlayers) / maxVal) * chartHeight;
 
   // Handle pointer tracking for tooltip
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -279,30 +277,6 @@ export const ServerHistoryChart: React.FC<ServerHistoryChartProps> = ({
             </g>
           )}
 
-          {/* Average guideline */}
-          {summary.averagePlayers > 0 && avgY >= paddingTop && (
-            <g>
-              <line
-                x1={paddingLeft}
-                y1={avgY}
-                x2={width - paddingRight}
-                y2={avgY}
-                stroke="#5a6840"
-                strokeWidth="1"
-                strokeDasharray="2 2"
-                strokeOpacity="0.4"
-              />
-              <text
-                x={paddingLeft + 4}
-                y={avgY - 4}
-                textAnchor="start"
-                className="fill-olive-700 text-[9px] font-mono"
-              >
-                AVG {summary.averagePlayers}
-              </text>
-            </g>
-          )}
-
           {/* Filled Area */}
           {areaPath && (
             <path d={areaPath} fill="url(#serverChartAreaGrad)" />
@@ -406,7 +380,7 @@ export const ServerHistoryChart: React.FC<ServerHistoryChartProps> = ({
             <div className="flex items-center justify-between pt-1">
               <span className="text-ink-muted flex items-center gap-1">
                 <Users className="w-3 h-3 text-olive-600" />
-                Players:
+                Players at moment:
               </span>
               <span className="font-bold text-ink text-sm">
                 {activePoint.point.playerCount}

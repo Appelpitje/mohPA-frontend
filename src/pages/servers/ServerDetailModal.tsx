@@ -166,7 +166,9 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
               <th className="px-3 py-2 w-12 text-center">POS</th>
               <th className="px-3 py-2">SOLDIER CALLSIGN</th>
               <th className="px-3 py-2 text-right">SCORE</th>
-              <th className="px-3 py-2 text-center">K / D</th>
+              <th className="px-3 py-2 text-right">KILLS</th>
+              <th className="px-3 py-2 text-right">DEATHS</th>
+              <th className="px-3 py-2 text-right">K/D</th>
               <th className="px-3 py-2 text-right">PING</th>
             </tr>
           </thead>
@@ -175,6 +177,9 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
               const ping = player.ping ?? player.pingMs ?? 35;
               const pingColor =
                 ping < 60 ? 'text-emerald-400' : ping < 130 ? 'text-amber-400' : 'text-crimson-400';
+              const kills = player.kills ?? (player.score !== undefined && player.score > 0 ? player.score : 0);
+              const deaths = player.deaths ?? 0;
+              const kd = deaths > 0 ? (kills / deaths).toFixed(2) : kills > 0 ? kills.toFixed(2) : '-';
 
               return (
                 <tr
@@ -205,10 +210,14 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
                   <td className="px-3 py-2 text-right font-bold text-cyan-400">
                     {(player.score || 0).toLocaleString()}
                   </td>
-                  <td className="px-3 py-2 text-center text-ink">
-                    <span className="text-emerald-400 font-semibold">{player.kills || 0}</span>
-                    <span className="text-ink-muted mx-1">/</span>
-                    <span className="text-crimson-400">{player.deaths ?? 0}</span>
+                  <td className="px-3 py-2 text-right font-bold text-emerald-400">
+                    {kills.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right font-bold text-crimson-400">
+                    {deaths.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold text-ink">
+                    {kd}
                   </td>
                   <td className={cn('px-3 py-2 text-right font-mono text-[11px] font-semibold', pingColor)}>
                     {ping}ms
