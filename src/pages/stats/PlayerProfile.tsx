@@ -67,6 +67,10 @@ export const PlayerProfile: React.FC = () => {
   const totalMatches = wins + losses;
   const winRate = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0';
   const combatHours = (timePlayedSeconds / 3600).toFixed(1);
+  const combatTimeFormatted =
+    timePlayedSeconds >= 3600
+      ? `${combatHours} hrs`
+      : `${Math.round(timePlayedSeconds / 60)} mins`;
 
   const getMilitaryRank = (scoreVal: number) => {
     if (scoreVal >= 500000) return { title: 'Supreme Commander', grade: 'OF-10', insignia: '★★★★★', color: 'text-amber-400', border: 'border-amber-500/60' };
@@ -376,8 +380,12 @@ export const PlayerProfile: React.FC = () => {
         {/* Total Combat Hours */}
         <MetricCard
           title="TOTAL COMBAT TIME"
-          value={`${combatHours} hrs`}
-          subtitle={`${Math.round(timePlayedSeconds / 60).toLocaleString()} mins deployed`}
+          value={combatTimeFormatted}
+          subtitle={
+            timePlayedSeconds >= 3600
+              ? `${Math.round(timePlayedSeconds / 60).toLocaleString()} mins deployed`
+              : `${timePlayedSeconds}s deployed (${(timePlayedSeconds / 3600).toFixed(2)} hrs)`
+          }
           icon={<Clock className="w-4 h-4 text-cyan-400" />}
           accentColor="cyan"
         />
@@ -399,7 +407,11 @@ export const PlayerProfile: React.FC = () => {
                 className="flex items-center justify-between bg-sand-50 border border-sand-200 px-3 py-2 rounded-sm font-mono text-xs"
               >
                 <span className="text-ink-muted">{row.label}</span>
-                <span className="text-ink font-semibold">{row.value.toLocaleString()}</span>
+                <span className="text-ink font-semibold">
+                  {row.label === 'Time'
+                    ? `${row.value.toLocaleString()}s (${Math.round(Number(row.value) / 60)}m)`
+                    : row.value.toLocaleString()}
+                </span>
               </div>
             ))}
           </div>
