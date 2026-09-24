@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Server,
@@ -316,7 +317,7 @@ export const ServerBrowser: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      width: '180px',
+      width: '240px',
       align: 'right',
       render: (srv) => (
         <div className="flex items-center justify-end space-x-1.5" onClick={(e) => e.stopPropagation()}>
@@ -341,6 +342,20 @@ export const ServerBrowser: React.FC = () => {
           >
             Scoreboard
           </Button>
+
+          <Link
+            to={`/servers/${srv.id}/history`}
+            onClick={(e) => e.stopPropagation()}
+            title="View Server History & GameTracker Charts"
+          >
+            <Button
+              variant="ghost"
+              size="xs"
+              leftIcon={<Activity className="w-3 h-3" />}
+            >
+              History
+            </Button>
+          </Link>
         </div>
       ),
     },

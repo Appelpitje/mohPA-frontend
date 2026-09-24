@@ -9,6 +9,7 @@ import { Register } from '../pages/auth/Register';
 import { ForgotPassword } from '../pages/auth/ForgotPassword';
 import { SoldierManager } from '../pages/soldiers/SoldierManager';
 import { ServerBrowser } from '../pages/servers/ServerBrowser';
+import { ServerHistory } from '../pages/servers/ServerHistory';
 import { Leaderboards } from '../pages/stats/Leaderboards';
 import { PlayerProfile } from '../pages/stats/PlayerProfile';
 import { DownloadGuides } from '../pages/setup/DownloadGuides';
@@ -51,6 +52,10 @@ export const router = createBrowserRouter([
       {
         path: 'servers',
         element: <ServerBrowser />,
+      },
+      {
+        path: 'servers/:id/history',
+        element: <ServerHistory />,
       },
       {
         path: 'leaderboards',

@@ -5,6 +5,8 @@ import {
   ServerFilter,
   RegisterServerData,
   RegisterServerResponse,
+  ServerHistoryResponse,
+  ServerHistoryRange,
 } from '../types/server';
 
 export const serverService = {
@@ -48,6 +50,14 @@ export const serverService = {
    */
   async queryServer(id: string): Promise<any> {
     const response = await apiClient.post(`/servers/${id}/query`);
+    return response.data;
+  },
+
+  /**
+   * Fetch historical stats, GameTracker charts (24h, 7d, 30d), and who played
+   */
+  async getServerHistory(id: string, range: ServerHistoryRange = '24h'): Promise<ServerHistoryResponse> {
+    const response = await apiClient.get<ServerHistoryResponse>(`/servers/${id}/history?range=${range}`);
     return response.data;
   },
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Server,
@@ -17,7 +18,7 @@ import {
   Signal,
   RefreshCw,
 } from 'lucide-react';
-import { GameServer, ScoreboardPlayer } from '../../types/server';
+import { GameServer, ScoreboardPlayer, ServerHistoryRange } from '../../types/server';
 import serverService from '../../services/serverService';
 import { getFaction, getRegionInfo, GAME_METADATA, formatMapName, formatGameMode } from '../../utils/gameMaps';
 import { useAuthStore } from '../../store/authStore';
@@ -25,6 +26,9 @@ import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { DirectConnectModal } from '../../components/servers/DirectConnectModal';
+import { ServerHistoryChart } from '../../components/servers/ServerHistoryChart';
+import { ServerWhoPlayedTable } from '../../components/servers/ServerWhoPlayedTable';
+import { ServerMapDistribution } from '../../components/servers/ServerMapDistribution';
 import { useToast } from '../../components/hud/Toast';
 import { cn } from '../../utils/cn';
 
@@ -42,7 +46,9 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
   onSelectPlayer,
 }) => {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'scoreboard' | 'history' | 'rules'>('scoreboard');
   const [activeScoreboardTab, setActiveScoreboardTab] = useState<'all' | 'split' | 'team1' | 'team2'>('split');
+  const [historyRange, setHistoryRange] = useState<ServerHistoryRange>('24h');
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const [copiedIp, setCopiedIp] = useState(false);
   const [copiedArg, setCopiedArg] = useState(false);
@@ -58,6 +64,16 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
     queryFn: () => (initialServer ? serverService.getServerDetails(initialServer.id) : null),
     enabled: isOpen && !!initialServer?.id,
     refetchInterval: isOpen ? 10000 : false, // Poll scoreboard every 10s when modal is open
+  });
+
+  // Fetch historical telemetry & charts when History tab is active
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+  } = useQuery({
+    queryKey: ['server-history-modal', initialServer?.id, historyRange],
+    queryFn: () => (initialServer ? serverService.getServerHistory(initialServer.id, historyRange) : null),
+    enabled: isOpen && activeTab === 'history' && !!initialServer?.id,
   });
 
   if (!initialServer) return null;
@@ -423,194 +439,280 @@ export const ServerDetailModal: React.FC<ServerDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Live Scoreboard Section */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-sand-200 pb-2">
-              <div className="flex items-center space-x-2">
-                <Shield className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-hud font-bold text-sm tracking-wider uppercase text-ink">
-                  LIVE THEATER SCOREBOARD
-                </h3>
-                <Badge variant="CYAN" size="sm">
-                  {scoreboard.length} ACTIVE
-                </Badge>
-              </div>
+          {/* View Mode Tabs: Scoreboard / History / Rules */}
+          <div className="flex flex-wrap items-center justify-between border-b border-sand-200 pb-2 gap-2">
+            <div className="flex items-center space-x-1 bg-sand-100 p-1 rounded-lg border border-sand-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('scoreboard')}
+                className={cn(
+                  'flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors font-mono',
+                  activeTab === 'scoreboard'
+                    ? 'bg-olive-700 text-white shadow-sm'
+                    : 'text-ink-muted hover:text-ink'
+                )}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Live Scoreboard</span>
+                <span className="text-[10px] px-1 py-0.2 rounded bg-black/20 font-normal">
+                  {scoreboard.length}
+                </span>
+              </button>
 
-              {/* View Switcher Tabs */}
-              <div className="flex items-center space-x-1 bg-sand-50 p-1 rounded-sm border border-sand-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveScoreboardTab('split')}
-                  className={cn(
-                    'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
-                    activeScoreboardTab === 'split'
-                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-ink-muted hover:text-ink'
-                  )}
-                >
-                  Faction Split View
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveScoreboardTab('team1')}
-                  className={cn(
-                    'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
-                    activeScoreboardTab === 'team1'
-                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-ink-muted hover:text-ink'
-                  )}
-                >
-                  {team1Faction.shortName} ({team1Players.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveScoreboardTab('team2')}
-                  className={cn(
-                    'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
-                    activeScoreboardTab === 'team2'
-                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-ink-muted hover:text-ink'
-                  )}
-                >
-                  {team2Faction.shortName} ({team2Players.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveScoreboardTab('all')}
-                  className={cn(
-                    'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
-                    activeScoreboardTab === 'all'
-                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-ink-muted hover:text-ink'
-                  )}
-                >
-                  All Combatants
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={cn(
+                  'flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors font-mono',
+                  activeTab === 'history'
+                    ? 'bg-olive-700 text-white shadow-sm'
+                    : 'text-ink-muted hover:text-ink'
+                )}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>History & Stats</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('rules')}
+                className={cn(
+                  'flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors font-mono',
+                  activeTab === 'rules'
+                    ? 'bg-olive-700 text-white shadow-sm'
+                    : 'text-ink-muted hover:text-ink'
+                )}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Rules ({Object.keys(rules).length})</span>
+              </button>
             </div>
 
-            {/* Scoreboard Tab Content */}
-            {activeScoreboardTab === 'split' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Team 1 Panel */}
+            <Link
+              to={`/servers/${server.id}/history`}
+              className="inline-flex items-center space-x-1 text-xs font-mono text-olive-700 hover:text-olive-800 transition-colors py-1 px-2 rounded hover:bg-sand-100"
+            >
+              <span>Full Analytics Page</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {/* Tab 1: Live Scoreboard */}
+          {activeTab === 'scoreboard' && (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-sand-200 pb-2">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-cyan-400" />
+                  <h3 className="font-hud font-bold text-sm tracking-wider uppercase text-ink">
+                    LIVE THEATER SCOREBOARD
+                  </h3>
+                  <Badge variant="CYAN" size="sm">
+                    {scoreboard.length} ACTIVE
+                  </Badge>
+                </div>
+
+                {/* View Switcher Tabs */}
+                <div className="flex items-center space-x-1 bg-sand-50 p-1 rounded-sm border border-sand-200">
+                  <button
+                    type="button"
+                    onClick={() => setActiveScoreboardTab('split')}
+                    className={cn(
+                      'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
+                      activeScoreboardTab === 'split'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
+                        : 'text-ink-muted hover:text-ink'
+                    )}
+                  >
+                    Faction Split View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveScoreboardTab('team1')}
+                    className={cn(
+                      'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
+                      activeScoreboardTab === 'team1'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
+                        : 'text-ink-muted hover:text-ink'
+                    )}
+                  >
+                    {team1Faction.shortName} ({team1Players.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveScoreboardTab('team2')}
+                    className={cn(
+                      'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
+                      activeScoreboardTab === 'team2'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
+                        : 'text-ink-muted hover:text-ink'
+                    )}
+                  >
+                    {team2Faction.shortName} ({team2Players.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveScoreboardTab('all')}
+                    className={cn(
+                      'px-2.5 py-1 text-[10px] uppercase font-mono rounded-sm transition-colors',
+                      activeScoreboardTab === 'all'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold'
+                        : 'text-ink-muted hover:text-ink'
+                    )}
+                  >
+                    All Combatants
+                  </button>
+                </div>
+              </div>
+
+              {/* Scoreboard Tab Content */}
+              {activeScoreboardTab === 'split' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Team 1 Panel */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded-sm">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
+                        <span className="font-hud font-bold text-xs uppercase text-cyan-300">
+                          {team1Faction.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs">
+                        <span className="text-ink-muted">Score: <b className="text-cyan-400">{team1Score}</b></span>
+                        <span className="text-ink-muted">|</span>
+                        <span className="text-ink">{team1Players.length} Soldiers</span>
+                      </div>
+                    </div>
+                    {renderPlayerTable(team1Players)}
+                  </div>
+
+                  {/* Team 2 Panel */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-crimson-950/40 border border-crimson-500/30 rounded-sm">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-crimson-400 shadow-[0_0_8px_#ef4444]" />
+                        <span className="font-hud font-bold text-xs uppercase text-crimson-300">
+                          {team2Faction.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs">
+                        <span className="text-ink-muted">Score: <b className="text-crimson-400">{team2Score}</b></span>
+                        <span className="text-ink-muted">|</span>
+                        <span className="text-ink">{team2Players.length} Soldiers</span>
+                      </div>
+                    </div>
+                    {renderPlayerTable(team2Players)}
+                  </div>
+                </div>
+              ) : activeScoreboardTab === 'team1' ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded-sm">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
-                      <span className="font-hud font-bold text-xs uppercase text-cyan-300">
-                        {team1Faction.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3 text-xs">
-                      <span className="text-ink-muted">Score: <b className="text-cyan-400">{team1Score}</b></span>
-                      <span className="text-ink-muted">|</span>
-                      <span className="text-ink">{team1Players.length} Soldiers</span>
-                    </div>
+                    <span className="font-hud font-bold text-xs uppercase text-cyan-300">
+                      {team1Faction.name} — {team1Players.length} Active Players (Score: {team1Score})
+                    </span>
                   </div>
                   {renderPlayerTable(team1Players)}
                 </div>
-
-                {/* Team 2 Panel */}
+              ) : activeScoreboardTab === 'team2' ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2.5 bg-crimson-950/40 border border-crimson-500/30 rounded-sm">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-crimson-400 shadow-[0_0_8px_#ef4444]" />
-                      <span className="font-hud font-bold text-xs uppercase text-crimson-300">
-                        {team2Faction.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3 text-xs">
-                      <span className="text-ink-muted">Score: <b className="text-crimson-400">{team2Score}</b></span>
-                      <span className="text-ink-muted">|</span>
-                      <span className="text-ink">{team2Players.length} Soldiers</span>
-                    </div>
+                    <span className="font-hud font-bold text-xs uppercase text-crimson-300">
+                      {team2Faction.name} — {team2Players.length} Active Players (Score: {team2Score})
+                    </span>
                   </div>
                   {renderPlayerTable(team2Players)}
                 </div>
-              </div>
-            ) : activeScoreboardTab === 'team1' ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded-sm">
-                  <span className="font-hud font-bold text-xs uppercase text-cyan-300">
-                    {team1Faction.name} — {team1Players.length} Active Players (Score: {team1Score})
-                  </span>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2.5 bg-sand-50 border border-sand-200 rounded-sm text-ink text-xs">
+                    <span>ALL ACTIVE COMBATANTS ({scoreboard.length})</span>
+                  </div>
+                  {renderPlayerTable(scoreboard)}
                 </div>
-                {renderPlayerTable(team1Players)}
-              </div>
-            ) : activeScoreboardTab === 'team2' ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2.5 bg-crimson-950/40 border border-crimson-500/30 rounded-sm">
-                  <span className="font-hud font-bold text-xs uppercase text-crimson-300">
-                    {team2Faction.name} — {team2Players.length} Active Players (Score: {team2Score})
-                  </span>
-                </div>
-                {renderPlayerTable(team2Players)}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2.5 bg-sand-50 border border-sand-200 rounded-sm text-ink text-xs">
-                  <span>ALL ACTIVE COMBATANTS ({scoreboard.length})</span>
-                </div>
-                {renderPlayerTable(scoreboard)}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Telemetry & Rules Card (Collapsible) */}
-          <div className="border border-sand-200 rounded-sm bg-sand-50 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setRulesExpanded(!rulesExpanded)}
-              className="w-full px-4 py-3 flex items-center justify-between bg-sand-50 hover:bg-sand-200 transition-colors text-left"
-            >
-              <div className="flex items-center space-x-2">
+          {/* Tab 2: History & GameTracker Stats */}
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              {isHistoryLoading && !historyData ? (
+                <div className="py-12 text-center text-xs font-mono text-ink-muted">
+                  <span className="inline-block animate-spin w-5 h-5 border-2 border-olive-600 border-t-transparent rounded-full mb-2" />
+                  <p>Loading historical server data…</p>
+                </div>
+              ) : historyData?.summary ? (
+                <>
+                  <ServerHistoryChart
+                    chart={historyData.chart || []}
+                    summary={historyData.summary}
+                    range={historyRange}
+                    onRangeChange={setHistoryRange}
+                    maxCapacity={server.maxPlayers || 32}
+                    isLoading={isHistoryLoading}
+                  />
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-1">
+                      <ServerMapDistribution
+                        topMaps={historyData.summary.topMaps || []}
+                        gameSlug={server.gameSlug}
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <ServerWhoPlayedTable
+                        players={historyData.players || []}
+                        isLoading={isHistoryLoading}
+                        onSelectPlayer={onSelectPlayer}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 text-center text-xs font-mono text-ink-muted">
+                  No historical data available yet.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 3: Server Rules & CVAR Configuration */}
+          {activeTab === 'rules' && (
+            <div className="border border-sand-200 rounded-sm bg-sand-50 overflow-hidden p-4 space-y-3">
+              <div className="flex items-center space-x-2 pb-2 border-b border-sand-200">
                 <Settings className="w-4 h-4 text-cyan-400" />
                 <span className="font-hud font-bold text-xs uppercase tracking-wider text-ink">
-                  SERVER RULES & CVAR CONFIGURATION
-                </span>
-                <span className="text-[10px] text-ink-muted">
-                  ({Object.keys(rules).length} parameters)
+                  SERVER RULES & CVAR CONFIGURATION ({Object.keys(rules).length} parameters)
                 </span>
               </div>
-              {rulesExpanded ? (
-                <ChevronUp className="w-4 h-4 text-ink-muted" />
+              {Object.keys(rules).length === 0 ? (
+                <p className="text-ink-muted text-xs font-mono">
+                  No custom cvar overrides or server rules broadcasted. Server is utilizing standard EA Theater defaults.
+                </p>
               ) : (
-                <ChevronDown className="w-4 h-4 text-ink-muted" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {Object.entries(rules).map(([k, v]) => (
+                    <div
+                      key={k}
+                      className="p-2 bg-sand-50 border border-sand-200 rounded-sm flex items-center justify-between text-xs"
+                    >
+                      <span className="text-ink-muted font-mono text-[11px] truncate max-w-[140px]" title={k}>
+                        {k}
+                      </span>
+                      <span className="text-cyan-300 font-mono font-bold text-[11px] ml-2">
+                        {typeof v === 'boolean'
+                          ? v
+                            ? 'ENABLED'
+                            : 'DISABLED'
+                          : typeof v === 'object'
+                          ? JSON.stringify(v)
+                          : String(v)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
-
-            {rulesExpanded && (
-              <div className="p-4 border-t border-sand-200 space-y-3">
-                {Object.keys(rules).length === 0 ? (
-                  <p className="text-ink-muted text-xs font-mono">
-                    No custom cvar overrides or server rules broadcasted. Server is utilizing standard EA Theater defaults.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                    {Object.entries(rules).map(([k, v]) => (
-                      <div
-                        key={k}
-                        className="p-2 bg-sand-50 border border-sand-200 rounded-sm flex items-center justify-between text-xs"
-                      >
-                        <span className="text-ink-muted font-mono text-[11px] truncate max-w-[140px]" title={k}>
-                          {k}
-                        </span>
-                        <span className="text-cyan-300 font-mono font-bold text-[11px] ml-2">
-                          {typeof v === 'boolean'
-                            ? v
-                              ? 'ENABLED'
-                              : 'DISABLED'
-                            : typeof v === 'object'
-                            ? JSON.stringify(v)
-                            : String(v)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Modal>
 

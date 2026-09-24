@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import apiClient from '../services/api';
 import serverService from '../services/serverService';
 import { ServerBrowser } from '../pages/servers/ServerBrowser';
@@ -104,7 +105,9 @@ function renderWithProviders(ui: React.ReactElement) {
   return render(
     <QueryClientProvider client={testClient}>
       <ToastProvider>
-        {ui}
+        <MemoryRouter>
+          {ui}
+        </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -419,13 +422,13 @@ describe('Module 4: DirectConnectModal & ServerDetailModal', () => {
     expect(screen.getByText(/THEATER SECTOR/i)).toBeInTheDocument();
     expect(screen.getByText(/Suez Canal 2142/i)).toBeInTheDocument();
     expect(screen.getByText(/SOLDIER CAPACITY/i)).toBeInTheDocument();
-    expect(screen.getByText(/SERVER RULES & CVAR CONFIGURATION/i)).toBeInTheDocument();
 
-    // Expand Rules
-    const rulesToggle = screen.getByText(/SERVER RULES & CVAR CONFIGURATION/i);
-    fireEvent.click(rulesToggle);
+    // Switch to Rules Tab
+    const rulesTab = screen.getByRole('button', { name: /Rules/i });
+    fireEvent.click(rulesTab);
 
     await waitFor(() => {
+      expect(screen.getByText(/SERVER RULES & CVAR CONFIGURATION/i)).toBeInTheDocument();
       expect(screen.getByText('titanShieldTime')).toBeInTheDocument();
       expect(screen.getByText('120')).toBeInTheDocument();
     });
