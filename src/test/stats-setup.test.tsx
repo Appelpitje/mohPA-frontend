@@ -422,19 +422,65 @@ describe('Module 5: PlayerProfile Dossier Component', () => {
       expect(screen.getByText('ColVance')).toBeInTheDocument();
       expect(screen.getByText(/ACTIVE OPERATIVE/i)).toBeInTheDocument();
       expect(screen.getByText(/Colonel/i)).toBeInTheDocument();
-      expect(screen.getByText('85,000')).toBeInTheDocument(); // Score
+      expect(screen.getAllByText('85,000').length).toBeGreaterThan(0);
       expect(screen.getByText('2.50')).toBeInTheDocument(); // K/D Ratio
       expect(screen.getByText('75.0%')).toBeInTheDocument(); // Win Rate: 180 / 240
     });
 
-    // Class Breakdown
-    expect(screen.getByRole('heading', { level: 4, name: 'ASSAULT' })).toBeInTheDocument();
-    expect(screen.getByText(/ENGINEER/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 4, name: 'ASSAULT' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ENGINEER/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('32,300')).not.toBeInTheDocument();
+    expect(screen.getByText('Team bonus')).toBeInTheDocument();
 
     // Match history is dummy placeholder data; keep it off the dossier until real logs exist
     expect(screen.queryByText(/ENGAGEMENT LOG/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Verdun Liberation')).not.toBeInTheDocument();
     expect(screen.queryByText('Minsk Perimeter')).not.toBeInTheDocument();
+  });
+
+  it('shows stored career keys and hides the fake class split', async () => {
+    const mockProfile = {
+      persona: {
+        id: 'p-career',
+        userId: 'u-career',
+        gameSlug: 'mohpa',
+        name: 'Col_Voss',
+        isActive: true,
+        createdAt: '2024-02-20T08:00:00.000Z',
+      },
+      stats: {
+        personaId: 'p-career',
+        score: 100,
+        kills: 0,
+        deaths: 0,
+        wins: 0,
+        losses: 0,
+        timePlayedSeconds: 0,
+        customStats: { totalAlliedMostAccurate: 2 },
+      },
+    };
+
+    (apiClient.get as any).mockImplementation((url: string) => {
+      if (url.includes('/stats/players/')) return Promise.resolve({ data: mockProfile });
+      return Promise.resolve({ data: {} });
+    });
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={['/stats/player/Col_Voss']}>
+          <Routes>
+            <Route path="/stats/player/:name" element={<PlayerProfile />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('totalAlliedMostAccurate')).toBeInTheDocument();
+    });
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.queryByText('38')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ASSAULT' })).not.toBeInTheDocument();
   });
 
   it('opens compare stats modal when clicking Compare Stats button', async () => {

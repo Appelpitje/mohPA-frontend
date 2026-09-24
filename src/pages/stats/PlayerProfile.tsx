@@ -25,17 +25,6 @@ import { MetricCard } from '../../components/hud/MetricCard';
 import { Modal } from '../../components/common/Modal';
 import { cn } from '../../utils/cn';
 
-interface ClassStat {
-  className: string;
-  role: string;
-  icon: string;
-  score: number;
-  timePlayed: number; // in hours
-  accuracy: number; // in %
-  kills: number;
-  color: string;
-}
-
 export const PlayerProfile: React.FC = () => {
   const { name } = useParams<{ name: string }>();
   const [searchParams] = useSearchParams();
@@ -93,49 +82,18 @@ export const PlayerProfile: React.FC = () => {
 
   const rankInfo = getMilitaryRank(score);
 
-  // Custom Stats & Class Breakdown (dynamically synthesized or from customStats)
-  const defaultClasses: ClassStat[] = [
-    {
-      className: 'Assault',
-      role: 'Frontline Infantry & Medic',
-      icon: '🛡️',
-      score: Math.round(score * 0.38),
-      timePlayed: +(+combatHours * 0.35).toFixed(1),
-      accuracy: 28.4,
-      kills: Math.round(kills * 0.42),
-      color: 'from-cyan-500 to-blue-600',
-    },
-    {
-      className: 'Recon / Sniper',
-      role: 'Long Range Precision & Spotting',
-      icon: '🎯',
-      score: Math.round(score * 0.26),
-      timePlayed: +(+combatHours * 0.25).toFixed(1),
-      accuracy: 46.2,
-      kills: Math.round(kills * 0.28),
-      color: 'from-amber-500 to-amber-700',
-    },
-    {
-      className: 'Engineer',
-      role: 'Heavy Anti-Vehicle & Demolitions',
-      icon: '🚀',
-      score: Math.round(score * 0.22),
-      timePlayed: +(+combatHours * 0.22).toFixed(1),
-      accuracy: 24.1,
-      kills: Math.round(kills * 0.18),
-      color: 'from-emerald-500 to-teal-700',
-    },
-    {
-      className: 'Support',
-      role: 'Heavy Suppression & Logistics',
-      icon: '⚡',
-      score: Math.round(score * 0.14),
-      timePlayed: +(+combatHours * 0.18).toFixed(1),
-      accuracy: 19.8,
-      kills: Math.round(kills * 0.12),
-      color: 'from-stamp-500 to-stamp-700',
-    },
-  ];
+  const customStats = stats?.customStats || {};
+  const careerRows = [
+    { label: 'Kills', value: kills },
+    { label: 'Deaths', value: deaths },
+    { label: 'Team bonus', value: score },
+    { label: 'Time', value: timePlayedSeconds },
+    ...Object.entries(customStats).flatMap(([key, raw]) => {
+      const value = typeof raw === 'number' ? raw : typeof raw === 'string' && /^-?\d+$/.test(raw) ? Number(raw) : Number.NaN;
+      if (!Number.isFinite(value)) return [];
+      return [{ label: key, value }];
+    }),
+  ].filter((row) => row.value !== 0);
 
   // Handle Share Link
   const handleShareLink = () => {
@@ -425,63 +383,27 @@ export const PlayerProfile: React.FC = () => {
         />
       </div>
 
-      {/* Class & Tactical Role Breakdown */}
       <Card
-        title="SPECIALIZATION // COMBAT CLASS BREAKDOWN"
-        subtitle="Telemetry & weapon efficiency per operative specialization"
+        title="CAREER RECORD"
+        subtitle="Kills, deaths, team bonus, time, and stored career keys"
         icon={<Target className="w-4 h-4 text-cyan-400" />}
         accent="cyan"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {defaultClasses.map((cls) => {
-            const classScorePercent = score > 0 ? ((cls.score / score) * 100).toFixed(0) : '0';
-            return (
+        {careerRows.length === 0 ? (
+          <p className="font-mono text-xs text-ink-muted">No career stats recorded.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {careerRows.map((row) => (
               <div
-                key={cls.className}
-                className="bg-sand-50 border border-sand-200 p-4 rounded-sm flex flex-col justify-between space-y-3 hover:border-sand-300 transition-colors"
+                key={row.label}
+                className="flex items-center justify-between bg-sand-50 border border-sand-200 px-3 py-2 rounded-sm font-mono text-xs"
               >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg">{cls.icon}</span>
-                    <span className="font-mono text-[11px] text-cyan-400 font-bold">
-                      {classScorePercent}% PTS
-                    </span>
-                  </div>
-                  <h4 className="font-hud font-bold text-sm text-ink mt-1">
-                    {cls.className.toUpperCase()}
-                  </h4>
-                  <p className="text-[10px] font-mono text-ink-muted">{cls.role}</p>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-sand-200 font-mono text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Score:</span>
-                    <span className="text-ink font-semibold">{cls.score.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Kills:</span>
-                    <span className="text-emerald-400 font-semibold">{cls.kills.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Combat Time:</span>
-                    <span className="text-ink">{cls.timePlayed} hrs</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-muted">Accuracy:</span>
-                    <span className="text-amber-400 font-semibold">{cls.accuracy}%</span>
-                  </div>
-                </div>
-
-                <div className="w-full bg-sand-50 h-1 rounded-full overflow-hidden">
-                  <div
-                    className={cn('h-full bg-gradient-to-r', cls.color)}
-                    style={{ width: `${Math.min(100, +classScorePercent)}%` }}
-                  />
-                </div>
+                <span className="text-ink-muted">{row.label}</span>
+                <span className="text-ink font-semibold">{row.value.toLocaleString()}</span>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Compare Stats Modal */}
